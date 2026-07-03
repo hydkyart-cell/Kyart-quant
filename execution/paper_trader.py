@@ -1,40 +1,49 @@
+from execution.portfolio import Portfolio
+
+
 class PaperTrader:
-    def __init__(self, starting_balance=10000):
-        self.balance = starting_balance
-        self.position = None
+    """
+    Simulated execution engine.
+    Executes approved orders and updates the Portfolio.
+    """
 
-    def execute(self, signal, price, symbol):
-        if signal == "NO_TRADE":
-            return "No action taken"
+    def __init__(self, portfolio=None):
+        self.portfolio = portfolio or Portfolio()
+        self.trade_history = []
 
-        if self.position is None:
-            self.position = {
-                "symbol": symbol,
-                "entry_price": price,
-                "side": signal
-            }
-            return f"Opened {signal} at {price}"
+    def buy(self, price, quantity=1):
 
-        # close position logic
-        pnl = 0
-        if self.position["side"] == "BUY":
-            pnl = price - self.position["entry_price"]
-        else:
-            pnl = self.position["entry_price"] - price
+        cost = price * quantity
 
-        self.balance += pnl
-        self.position = None
+        if self.portfolio.cash < cost:
+            return False, "Insufficient cash."
 
-        return f"Closed trade. PnL: {round(pnl, 5)} | Balance: {round(self.balance, 2)}"
-def dashboard(self):
-    stats = self.stats()
+        self.portfolio.open_position(quantity, price)
 
-    print("\n" + "="*40)
-    print(" KYART QUANT DASHBOARD")
-    print("="*40)
-    print(f"Balance     : {round(self.balance, 2)}")
-    print(f"Trades      : {stats['total_trades']}")
-    print(f"Wins        : {stats['wins']}")
-    print(f"Losses      : {stats['losses']}")
-    print(f"Win Rate    : {stats['win_rate']}")
-    print("="*40 + "\n")
+        self.trade_history.append({
+            "side": "BUY",
+            "price": price,
+            "quantity": quantity,
+        })
+
+        return True, "BUY executed."
+
+    def sell(self, price, quantity=1):
+
+        if self.portfolio.position < quantity:
+            return False, "No open position."
+
+        pnl = self.portfolio.close_position(quantity, price)
+
+        self.trade_history.append({
+            "side": "SELL",
+            "price": price,
+            "quantity": quantity,
+            "pnl": round(pnl, 2),
+        })
+
+        return True, f"SELL executed. PnL: {pnl:.2f}"
+
+    def summary(self, current_price):
+
+        return self.portfolio.summary(current_price)

@@ -1,63 +1,90 @@
-from rich.live import Live
-from rich.table import Table
 import time
 
-from core.market_data import get_market_snapshot
-from core.strategy import SimpleStrategy
-from risk.risk_engine import RiskEngine
+from rich.live import Live
+from rich.table import Table
 
-strategy = SimpleStrategy(window=5)
-risk = RiskEngine()
-
-
-def render_dashboard(data, signal, account):
-
-    table = Table(title="KYART QUANT TERMINAL")
-
-    table.add_column("Metric")
-    table.add_column("Value")
-
-    spread = round(data["ask"] - data["bid"], 4)
-
-    table.add_row("Symbol", data["symbol"])
-    table.add_row("Price", str(data["price"]))
-    table.add_row("Bid", str(data["bid"]))
-    table.add_row("Ask", str(data["ask"]))
-    table.add_row("Spread", str(spread))
-    table.add_row("Volume", str(data["volume"]))
-
-    table.add_row("")
-
-    table.add_row("Signal", signal)
-    table.add_row("Action", account["action"])
-    table.add_row("Position", str(account["position"]))
-    table.add_row("Balance", f"${account['balance']:.2f}")
-
-    return table
+from core.market_engine import MarketEngine
+from core.engine import TradingEngine
 
 
-def run():
+class KyartApp:
 
-    first = get_market_snapshot()
-    signal = strategy.update(first["price"])
-    account = risk.process_signal(signal, first["price"])
+    def __init__(self):
 
-    with Live(render_dashboard(first, signal, account),
-              refresh_per_second=4,
-              screen=True) as live:
+        self.market = MarketEngine(symbol="btcusdt")
+        self.engine = TradingEngine()
 
-        while True:
+        self.last_price = None
 
-            market = get_market_snapshot()
+    def start_market(self):
 
-            signal = strategy.update(market["price"])
+        # runs Binance websocket in background thread
+        self.market.start()
 
-            account = risk.process_signal(signal, market["price"])
+    def render(self, snapshot):
 
-            live.update(render_dashboard(market, signal, account))
+        table = Table(title="KYART QUANT LIVE TERMINAL")
 
-            time.sleep(0.25)
+        table.add_column("Metric")
+        table.add_column("Value")
+
+        table.add_row("Price", str(snapshot["price"]))
+        table.add_row("Signal", snapshot["signal"])
+        table.add_row("Action", snapshot["action"])
+
+        table.add_row("", "")
+
+        p = snapshot["portfolio"]
+
+        table.add_row("Cash", str(p["cash"]))
+        table.add_row("Position", str(p["position"]))
+        table.add_row("Equity", str(p["equity"]))
+        table.add_row("Realized PnL", str(p["realized"]))
+        table.add_row("Unrealized PnL", str(p["unrealized"]))
+
+        table.add_row("", "")
+
+        table.add_row("SMA", str(snapshot["sma"]))
+        table.add_row("EMA", str(snapshot["ema"]))
+        table.add_row("Volatility", str(snapshot["volatility"]))
+
+        return table
+
+    def run(self):
+
+        self.start_market()
+
+        with Live(self.render({
+            "price": 0,
+            "signal": "WAITING",
+            "action": "INIT",
+            "sma": 0,
+            "ema": 0,
+            "volatility": 0,
+            "portfolio": {
+                "cash": 0,
+                "position": 0,
+                "equity": 0,
+                "realized": 0,
+                "unrealized": 0
+            }
+        }), refresh_per_second=4, screen=True) as live:
+
+            while True:
+
+                price = self.market.get_latest_price()
+
+                if price is None:
+                    time.sleep(0.2)
+                    continue
+
+                snapshot = self.engine.update(price)
+
+                live.update(self.render(snapshot))
+
+                time.sleep(0.25)
 
 
 if __name__ == "__main__":
-    run()
+    app = KyartApp()
+    app.run()

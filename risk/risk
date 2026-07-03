@@ -8,6 +8,10 @@ class RiskResult:
 
 
 class RiskEngine:
+    """
+    Basic risk management engine for Kyart Quant.
+    Every trade request should pass through this class.
+    """
 
     def __init__(
         self,
@@ -26,6 +30,13 @@ class RiskEngine:
         quantity,
         daily_loss=0,
     ):
+        """
+        Validate a proposed trade.
+
+        Returns:
+            RiskResult
+        """
+
         if quantity <= 0:
             return RiskResult(False, "Quantity must be positive.")
 
