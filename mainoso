@@ -1,0 +1,99 @@
+import os
+import time
+import threading
+
+from config.settings import *
+from core.logger import logger
+from data.market_data import get_latest_price
+from strategies.simple_strategy import generate_signal
+from risk.risk_manager import apply_risk
+from execution.paper_trader import PaperTrader
+
+
+class BotEngine:
+    def __init__(self):
+        self.trader = PaperTrader()
+        self.running = False
+        self.thread = None
+
+    def _run_loop(self):
+        iteration = 0
+
+        while self.running:
+            iteration += 1
+
+            data = get_latest_price(DEFAULT_SYMBOL)
+
+            raw_signal = generate_signal(data)
+            final_signal = apply_risk(raw_signal, data)
+
+            result = self.trader.execute(
+                final_signal,
+                data["price"],
+                data["symbol"]
+            )
+
+            logger.info(f"[{iteration}] Signal: {raw_signal} -> {final_signal}")
+            logger.info(f"[{iteration}] Execution: {result}")
+
+            if iteration % 5 == 0:
+                print("\n--- LIVE STATUS ---")
+                self.trader.dashboard()
+
+            time.sleep(2)
+
+    def start(self):
+        if self.running:
+            print("Bot already running.")
+            return
+
+        self.running = True
+        self.thread = threading.Thread(target=self._run_loop)
+        self.thread.start()
+        print("Bot started.")
+
+    def stop(self):
+        if not self.running:
+            print("Bot is not running.")
+            return
+
+        self.running = False
+        self.thread.join()
+        print("Bot stopped.")
+
+    def stats(self):
+        return self.trader.stats()
+
+
+def menu():
+    bot = BotEngine()
+
+    while True:
+        print("\n===== KYART QUANT MENU =====")
+        print("1. Start Bot")
+        print("2. Stop Bot")
+        print("3. View Stats")
+        print("4. Exit")
+
+        choice = input("Select option: ")
+
+        if choice == "1":
+            bot.start()
+
+        elif choice == "2":
+            bot.stop()
+
+        elif choice == "3":
+            print(bot.stats())
+
+        elif choice == "4":
+            bot.stop()
+            print("Exiting system...")
+            break
+
+        else:
+            print("Invalid option.")
+
+
+if __name__ == "__main__":
+    menu()
