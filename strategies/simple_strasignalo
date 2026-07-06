@@ -1,0 +1,22 @@
+def generate_signal(market_data):
+    """
+    Simple moving strategy.
+    Returns:
+        BUY
+        SELL
+        HOLD
+    """
+
+    price = market_data["price"]
+
+    # Temporary baseline
+    baseline = 1.10
+
+    if price > baseline:
+        signal = "BUY"
+    elif price < baseline:
+        signal = "SELL"
+    else:
+        signal = "HOLD"
+
+    return signal

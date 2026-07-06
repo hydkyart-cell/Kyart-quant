@@ -2,12 +2,14 @@ from statistics import mean
 
 
 class Indicators:
-    """
-    Basic Technical Indicators
-    """
 
     @staticmethod
-    def sma(prices, period):
+    def sma(prices, period=14):
+
+        if prices is None:
+            return None
+
+        prices = list(prices)
 
         if len(prices) < period:
             return None
@@ -15,30 +17,37 @@ class Indicators:
         return mean(prices[-period:])
 
     @staticmethod
-    def ema(prices, period):
+    def ema(prices, period=14):
+
+        if prices is None:
+            return None
+
+        prices = list(prices)
 
         if len(prices) < period:
             return None
 
         multiplier = 2 / (period + 1)
-
         ema = prices[0]
 
-        for price in prices[1:]:
-            ema = (price - ema) * multiplier + ema
+        for p in prices[1:]:
+            ema = (p - ema) * multiplier + ema
 
         return ema
 
     @staticmethod
-    def volatility(prices, period):
+    def volatility(prices, period=14):
+
+        if prices is None:
+            return None
+
+        prices = list(prices)
 
         if len(prices) < period:
             return None
 
-        data = prices[-period:]
+        avg = mean(prices[-period:])
 
-        avg = mean(data)
-
-        variance = sum((x - avg) ** 2 for x in data) / len(data)
+        variance = sum((p - avg) ** 2 for p in prices[-period:]) / period
 
         return variance ** 0.5

@@ -1,49 +1,76 @@
-from dataclasses import dataclass
-
-
-@dataclass
-class RiskResult:
-    approved: bool
-    reason: str = ""
-
-
 class RiskEngine:
 
-    def __init__(
-        self,
-        max_position_size=0.20,
-        max_trade_value=5000,
-        max_daily_loss=1000,
-    ):
-        self.max_position_size = max_position_size
-        self.max_trade_value = max_trade_value
-        self.max_daily_loss = max_daily_loss
+    def __init__(self):
+        # Kyart Quant risk rules
+        self.max_positions = 30
 
-    def validate_trade(
-        self,
-        cash,
-        price,
-        quantity,
-        daily_loss=0,
-    ):
-        if quantity <= 0:
-            return RiskResult(False, "Quantity must be positive.")
+        # Maximum loss allowed on a single trade
+        self.max_risk_per_trade = 0.005   # 0.5%
 
+        # Maximum total portfolio risk
+        self.max_portfolio_risk = 0.06    # 6%
+
+        # Maximum daily drawdown
+        self.max_daily_drawdown = 0.02    # 2%
+
+        # Maximum exposure per asset
+        self.max_asset_exposure = 0.20    # 20%
+
+        # Maximum sector exposure
+        self.max_sector_exposure = 0.40   # 40%
+
+
+    def allow_trade(self, market_data, portfolio):
+
+        price = market_data.get("price", 0)
+
+        # Basic market validation
         if price <= 0:
-            return RiskResult(False, "Invalid market price.")
+            return False
 
-        trade_value = price * quantity
 
-        if trade_value > cash:
-            return RiskResult(False, "Insufficient cash.")
+        equity = portfolio.get("equity", 0)
+        position = portfolio.get("position", 0)
+        cash = portfolio.get("cash", 0)
 
-        if trade_value > self.max_trade_value:
-            return RiskResult(False, "Trade exceeds maximum trade value.")
 
-        if trade_value > cash * self.max_position_size:
-            return RiskResult(False, "Position exceeds maximum allocation.")
+        # Account protection
+        if equity <= 0:
+            return False
 
-        if daily_loss >= self.max_daily_loss:
-            return RiskResult(False, "Daily loss limit reached.")
 
-        return RiskResult(True, "Trade approved.")
+        # Position limit protection
+        if abs(position) >= self.max_positions:
+            return False
+
+
+        # Calculate current exposure
+        current_exposure = abs(position * price) / equity
+
+
+        # Prevent over concentration
+        if current_exposure >= self.max_asset_exposure:
+            return False
+
+
+        # Available capital check
+        if cash <= 0:
+            return False
+
+
+        # Maximum allowed risk per trade
+        risk_amount = equity * self.max_risk_per_trade
+
+
+        if risk_amount <= 0:
+            return False
+
+
+        # Daily drawdown protection
+        daily_loss = portfolio.get("daily_loss", 0)
+
+        if daily_loss >= equity * self.max_daily_drawdown:
+            return False
+
+
+        return True

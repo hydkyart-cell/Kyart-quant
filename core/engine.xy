@@ -1,5 +1,5 @@
-import time
 from datetime import datetime
+import time
 
 from analytics.indicators import Indicators
 from core.price_buffer import PriceBuffer
@@ -19,86 +19,53 @@ class TradingEngine:
         self.last_signal = None
         self.last_notification = None
         self.notification_interval = 15 * 60  # 15 minutes
-
-
     def update(self, price):
 
-        # Store incoming market price
         self.buffer.add(price)
+        prices = self.buffer.prices
 
-        prices = self.buffer.get_prices()
-
-
-        # Calculate indicators
         sma = self.indicators.sma(prices)
         ema = self.indicators.ema(prices)
-        volatility = self.indicators.volatility(prices)
-
+        vol = self.indicators.volatility(prices)
 
         market_data = {
             "price": price,
             "sma": sma,
             "ema": ema,
-            "volatility": volatility,
+            "volatility": vol,
             "timestamp": datetime.utcnow().isoformat()
         }
 
-
-        # Generate trading decision
         signal = generate_signal(market_data)
 
         action = "HOLD"
 
-
-        portfolio = self.trader.get_portfolio()
-
-
-        # Risk-controlled execution
         if signal == "BUY":
-
-            if self.risk.allow_trade(
-                market_data,
-                portfolio
-            ):
+            if self.risk.allow_trade(market_data):
                 self.trader.buy(price)
                 action = "OPEN_LONG"
 
-
-        elif signal == "SELL":
-
-            if self.risk.allow_trade(
-                market_data,
-                portfolio
-            ):
+                elif signal == "SELL":
+            if self.risk.allow_trade(market_data):
                 self.trader.sell(price)
                 action = "OPEN_SHORT"
 
-
-        # Refresh portfolio after execution
         portfolio = self.trader.get_portfolio()
-
-
-        # Notification timing control
         current_time = time.time()
 
-        send_notification = False
-
-
-        if (
-            self.last_notification is None
-            or current_time - self.last_notification >= self.notification_interval
-        ):
-            send_notification = True
-            self.last_notification = current_time
-
-
+        send_notification = False        if(
+    self.last_notification is None
+    or current_time - self.last_notification >= self.notification_interval
+):
+    send_notification = True
+    self.last_notification = current_time
         return {
             "price": price,
             "signal": signal,
             "action": action,
             "sma": sma,
             "ema": ema,
-            "volatility": volatility,
-            "portfolio": portfolio,
+            "volatility": vol,
+            "portfolio": portfolio
             "send_notification": send_notification
         }

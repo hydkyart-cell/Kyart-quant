@@ -1,15 +1,17 @@
 def generate_signal(market_data):
-    """
-    Very basic trading strategy.
-    """
+
     price = market_data["price"]
 
-    # naive baseline (temporary logic)
-    baseline = 1.10
+    sma = market_data.get("sma")
+    ema = market_data.get("ema")
 
-    if price > baseline:
-        return "BUY"
-    elif price < baseline:
-        return "SELL"
-    else:
+    if sma is None or ema is None:
         return "HOLD"
+
+    if price > sma and price > ema:
+        return "BUY"
+
+    elif price < sma and price < ema:
+        return "SELL"
+
+    return "HOLD"

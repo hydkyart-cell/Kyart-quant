@@ -14,12 +14,8 @@ class KyartApp:
         self.engine = TradingEngine()
         self.telegram = TelegramNotifier()
 
-        self.last_sent_signal = None
-
-
     def start_market(self):
         self.market.start()
-
 
     def render(self, snapshot):
 
@@ -50,102 +46,58 @@ class KyartApp:
 
         return table
 
-
     def run(self):
 
         self.start_market()
 
-        self.telegram.send(
-            "🟢 Kyart Quant started successfully."
-        )
+        self.telegram.send("🟢 Kyart Quant started successfully.")
 
-
-        with Live(
-            self.render({
-                "price": 0,
-                "signal": "INIT",
-                "action": "INIT",
-                "sma": 0,
-                "ema": 0,
-                "volatility": 0,
-                "portfolio": {
-                    "cash": 10000,
-                    "position": 0,
-                    "equity": 10000,
-                    "realized": 0,
-                    "unrealized": 0
-                }
-            }),
-            refresh_per_second=4,
-            screen=True
-        ) as live:
-
+        with Live(self.render({
+            "price": 0,
+            "signal": "INIT",
+            "action": "INIT",
+            "sma": 0,
+            "ema": 0,
+            "volatility": 0,
+            "portfolio": {
+                "cash": 10000,
+                "position": 0,
+                "equity": 10000,
+                "realized": 0,
+                "unrealized": 0
+            }
+        }), refresh_per_second=4, screen=True) as live:
 
             while True:
 
                 price = self.market.get_latest_price()
 
-
                 if price is None:
                     time.sleep(0.2)
                     continue
 
-
                 snapshot = self.engine.update(price)
 
-                live.update(
-                    self.render(snapshot)
-                )
+if snapshot["send_notification"]:
 
+    p = snapshot["portfolio"]
 
-                # Send only NEW BUY/SELL signals
-                if (
-                    snapshot["signal"] in ["BUY", "SELL"]
-                    and snapshot["signal"] != self.last_sent_signal
-                ):
-
-                    self.telegram.send(
-                        f"""
-📊 Kyart Quant Signal
-
-Signal: {snapshot['signal']}
-Price: {price}
-Action: {snapshot['action']}
-"""
-                    )
-
-                    self.last_sent_signal = snapshot["signal"]
-
-
-                # 15 minute system update
-                elif snapshot["send_notification"]:
-
-                    p = snapshot["portfolio"]
-
-                    self.telegram.send(
-                        f"""
-🟢 Kyart Quant Update
+    telegram.send(
+        f"""📊 Kyart Quant Update
 
 Price: {snapshot['price']}
 Signal: {snapshot['signal']}
 Action: {snapshot['action']}
 
-Portfolio:
 Cash: {p['cash']}
 Position: {p['position']}
 Equity: {p['equity']}
-
-Indicators:
-SMA: {snapshot['sma']}
-EMA: {snapshot['ema']}
-Volatility: {snapshot['volatility']}
 """
-                    )
+    )
 
+live.update(self.render(snapshot))
 
-                time.sleep(0.25)
-
-
+time.sleep(0.25)
 
 if __name__ == "__main__":
     KyartApp().run()
