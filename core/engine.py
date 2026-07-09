@@ -15,112 +15,174 @@ class TradingEngine:
 
         self.buffer = PriceBuffer()
 
-        self.candle = CandleEngine()
-        self.decision = DecisionEngine()
+        self.candles = CandleEngine(
+            timeframe=900
+        )
 
         self.indicators = Indicators()
+
+        self.decision = DecisionEngine()
+
         self.risk = RiskEngine()
+
         self.trader = PaperTrader()
 
-        self.last_signal = None
+
+        self.minimum_candles = 20
+
 
         self.last_notification = None
+
         self.notification_interval = 15 * 60
+
 
 
     def update(self, price):
 
-        # Store incoming price
-        self.buffer.add(price)
-
-        prices = self.buffer.get_prices()
+        completed_candle = self.candles.update(price)
 
 
-        # Indicators
-        sma = self.indicators.sma(prices)
-        ema = self.indicators.ema(prices)
-        volatility = self.indicators.volatility(prices)
+        portfolio = self.trader.get_portfolio()
+
+        position = portfolio["position"]
 
 
-        # Build 15 minute candle
-        candle = self.candle.update(price)
+        if position > 0:
+
+            action = "HOLD_LONG"
+
+        else:
+
+            action = "WAIT_CANDLE"
 
 
-        market_data = {
 
-            "price": price,
+        signal = "HOLD"
 
-            "sma": sma,
+        sma = None
 
-            "ema": ema,
+        ema = None
 
-            "volatility": volatility,
-
-            "candle": candle,
-
-            "timestamp": datetime.utcnow().isoformat()
-
-        }
+        volatility = None
 
 
-        # Conservative decision engine
-        signal = self.decision.decide(
-            market_data
+
+        if completed_candle:
+
+            close_price = completed_candle["close"]
+
+            self.buffer.add(
+                close_price
+            )
+
+
+
+        candle_count = len(
+            self.buffer.get_prices()
         )
 
 
-        action = "HOLD"
+
+        if candle_count >= self.minimum_candles:
+
+
+            prices = self.buffer.get_prices()
+
+
+            sma = self.indicators.sma(
+                prices
+            )
+
+            ema = self.indicators.ema(
+                prices
+            )
+
+            volatility = self.indicators.volatility(
+                prices
+            )
+
+
+            market_data = {
+
+                "price": price,
+
+                "sma": sma,
+
+                "ema": ema,
+
+                "volatility": volatility,
+
+                "candle": completed_candle,
+
+                "timestamp": datetime.utcnow().isoformat()
+
+            }
+
+
+            signal = self.decision.decide(
+                market_data
+            )
+
+
+
+            if signal == "BUY":
+
+
+                if position == 0:
+
+
+                    if self.risk.allow_trade(
+                        market_data,
+                        portfolio
+                    ):
+
+                        self.trader.buy(
+                            price
+                        )
+
+                        action = "OPEN_LONG"
+
+
+
+            elif signal == "SELL":
+
+
+                if position > 0:
+
+                    action = "HOLD_LONG"
+
+
+
+        else:
+
+            action = "WAIT_WARMUP"
+
 
 
         portfolio = self.trader.get_portfolio()
 
 
-        # Risk controlled execution
-
-        if signal == "BUY":
-
-            if self.risk.allow_trade(
-                market_data,
-                portfolio
-            ):
-
-                self.trader.buy(price)
-
-                action = "OPEN_LONG"
-
-
-        elif signal == "SELL":
-
-            if self.risk.allow_trade(
-                market_data,
-                portfolio
-            ):
-
-                self.trader.sell(price)
-
-                action = "OPEN_SHORT"
-
-
-        # Refresh portfolio
-
-        portfolio = self.trader.get_portfolio()
-
-
-        # Notification timer
 
         current_time = time.time()
 
         send_notification = False
 
 
+
         if (
             self.last_notification is None
-            or current_time - self.last_notification >= self.notification_interval
+            or current_time - self.last_notification
+            >= self.notification_interval
         ):
 
             send_notification = True
 
             self.last_notification = current_time
+
+
+
+        candle_status = self.candles.status()
+
 
 
         return {
@@ -137,7 +199,9 @@ class TradingEngine:
 
             "volatility": volatility,
 
-            "candle": candle,
+            "candle_count": candle_count,
+
+            "candle_status": candle_status,
 
             "portfolio": portfolio,
 
