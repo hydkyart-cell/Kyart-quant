@@ -16,6 +16,10 @@ class KyartApp:
 
         self.last_sent_signal = None
 
+        # Notification protection
+        self.last_notification_time = 0
+        self.notification_cooldown = 900  # 15 minutes
+
 
     def start_market(self):
         self.market.start()
@@ -93,12 +97,13 @@ class KyartApp:
 
                 snapshot = self.engine.update(price)
 
+
                 live.update(
                     self.render(snapshot)
                 )
 
 
-                # Send only NEW BUY/SELL signals
+                # New BUY/SELL signals only
                 if (
                     snapshot["signal"] in ["BUY", "SELL"]
                     and snapshot["signal"] != self.last_sent_signal
@@ -117,8 +122,11 @@ Action: {snapshot['action']}
                     self.last_sent_signal = snapshot["signal"]
 
 
-                # 15 minute system update
-                elif snapshot["send_notification"]:
+                # Controlled system notifications
+                elif (
+                    snapshot["send_notification"]
+                    and time.time() - self.last_notification_time >= self.notification_cooldown
+                ):
 
                     p = snapshot["portfolio"]
 
@@ -141,6 +149,8 @@ EMA: {snapshot['ema']}
 Volatility: {snapshot['volatility']}
 """
                     )
+
+                    self.last_notification_time = time.time()
 
 
                 time.sleep(0.25)
