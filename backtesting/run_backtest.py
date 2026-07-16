@@ -5,6 +5,7 @@ from backtesting.trade_report import TradeReport
 from backtesting.performance import PerformanceAnalyzer
 from backtesting.analytics import BacktestAnalytics
 from backtesting.equity_curve import EquityCurve
+from backtesting.equity_export import EquityExporter
 
 
 print("\n=== KYART QUANT BACKTEST ===")
@@ -13,6 +14,8 @@ print("\n=== KYART QUANT BACKTEST ===")
 loader = HistoricalDataLoader()
 
 candles = loader.load(
+    symbol="BTCUSDT",
+    interval="15m",
     limit=300
 )
 
@@ -22,43 +25,40 @@ print(
 )
 
 
-prices = [
-    candle.close
-    for candle in candles
-]
-
+prices = []
 
 indicator_data = []
 
 
-for i in range(len(prices)):
+for candle in candles:
 
-    history = prices[:i+1]
+    prices.append(
+        candle.close
+    )
 
     indicator_data.append({
 
-        "sma":
-            Indicators.sma(
-                history,
-                14
-            ),
+        "sma": Indicators.sma(
+            prices,
+            14
+        ),
 
-        "ema":
-            Indicators.ema(
-                history,
-                14
-            ),
+        "ema": Indicators.ema(
+            prices,
+            14
+        ),
 
-        "volatility":
-            Indicators.volatility(
-                history,
-                14
-            )
+        "volatility": Indicators.volatility(
+            prices,
+            14
+        )
 
     })
 
 
-backtester = Backtester()
+backtester = Backtester(
+    starting_cash=10000
+)
 
 
 results = backtester.run(
@@ -120,3 +120,18 @@ for key, value in curve.summary().items():
     print(
         f"{key}: {value}"
     )
+
+
+
+exporter = EquityExporter(
+    results
+)
+
+
+file = exporter.export_csv()
+
+
+print(
+    "\nEquity exported:",
+    file
+)
