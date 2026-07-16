@@ -9,3 +9,4 @@ env/
 __pycache__/
 *.pyc
 *.zx
+equity_curve.csv
