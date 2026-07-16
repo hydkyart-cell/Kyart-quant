@@ -7,6 +7,7 @@ from core.candle_engine import CandleEngine
 from core.decision_engine import DecisionEngine
 from execution.paper_trader import PaperTrader
 from risk.risk_engine import RiskEngine
+from data.historical_data import HistoricalDataLoader
 
 
 class TradingEngine:
@@ -16,8 +17,11 @@ class TradingEngine:
         self.buffer = PriceBuffer()
 
         self.candles = CandleEngine(
-            timeframe=900
+            timeframe=900,
+            symbol="BTCUSDT"
         )
+
+        self.load_history()
 
         self.indicators = Indicators()
 
@@ -30,10 +34,57 @@ class TradingEngine:
 
         self.minimum_candles = 20
 
-
         self.last_notification = None
 
         self.notification_interval = 15 * 60
+
+
+
+    def load_history(self):
+
+        try:
+
+            loader = HistoricalDataLoader()
+
+            candles = loader.load(
+                symbol="BTCUSDT",
+                interval="15m",
+                limit=300
+            )
+
+
+            closes = []
+
+            for candle in candles:
+
+                if hasattr(candle, "close"):
+
+                    closes.append(
+                        candle.close
+                    )
+
+                else:
+
+                    closes.append(
+                        candle["close"]
+                    )
+
+
+            self.buffer.load(closes)
+
+            self.candles.load_history(candles)
+
+
+            print(
+                f"[HISTORY] Loaded {len(candles)} candles"
+            )
+
+
+        except Exception as error:
+
+            print(
+                f"[HISTORY] Failed: {error}"
+            )
 
 
 
@@ -69,7 +120,9 @@ class TradingEngine:
 
         if completed_candle:
 
-            close_price = completed_candle["close"]
+
+            close_price = completed_candle.close
+
 
             self.buffer.add(
                 close_price
@@ -127,9 +180,7 @@ class TradingEngine:
 
             if signal == "BUY":
 
-
                 if position == 0:
-
 
                     if self.risk.allow_trade(
                         market_data,
@@ -146,7 +197,6 @@ class TradingEngine:
 
             elif signal == "SELL":
 
-
                 if position > 0:
 
                     action = "HOLD_LONG"
@@ -160,7 +210,6 @@ class TradingEngine:
 
 
         portfolio = self.trader.get_portfolio()
-
 
 
         current_time = time.time()

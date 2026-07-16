@@ -6,7 +6,7 @@ class DecisionEngine:
     - Trend
     - EMA/SMA relationship
     - Candle direction
-    - Volatility
+    - Volatility filter
     """
 
     def decide(self, market_data):
@@ -20,6 +20,15 @@ class DecisionEngine:
 
         if sma is None or ema is None:
             return "HOLD"
+
+
+        # Avoid low-volatility markets
+        if volatility is not None:
+
+            if volatility < 20:
+
+                return "HOLD"
+
 
 
         bullish = (
@@ -41,11 +50,11 @@ class DecisionEngine:
         if candle:
 
             candle_bullish = (
-                candle["close"] > candle["open"]
+                candle.close > candle.open
             )
 
             candle_bearish = (
-                candle["close"] < candle["open"]
+                candle.close < candle.open
             )
 
 
@@ -55,14 +64,18 @@ class DecisionEngine:
             bullish
             and candle_bullish
         ):
+
             return "BUY"
+
 
 
         if (
             bearish
             and candle_bearish
         ):
+
             return "SELL"
+
 
 
         return "HOLD"

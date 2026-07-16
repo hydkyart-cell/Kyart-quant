@@ -12,6 +12,13 @@ class PriceBuffer:
     def add(self, price):
         self.prices.append(float(price))
 
+    def load(self, prices):
+        """
+        Load historical prices into the buffer.
+        """
+        for price in prices:
+            self.add(price)
+
     def latest(self):
         if not self.prices:
             return None
