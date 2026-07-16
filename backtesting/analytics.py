@@ -1,3 +1,6 @@
+import math
+
+
 class BacktestAnalytics:
     """
     Advanced quantitative performance metrics.
@@ -59,6 +62,7 @@ class BacktestAnalytics:
     def consecutive_losses(self):
 
         max_losses = 0
+
         current = 0
 
 
@@ -82,6 +86,113 @@ class BacktestAnalytics:
 
 
 
+    def returns(self):
+
+        equity = []
+
+
+        for result in self.results:
+
+            equity.append(
+                result["equity"]
+            )
+
+
+        returns = []
+
+
+        for i in range(
+            1,
+            len(equity)
+        ):
+
+            if equity[i-1] != 0:
+
+                returns.append(
+                    (equity[i] - equity[i-1])
+                    /
+                    equity[i-1]
+                )
+
+
+        return returns
+
+
+
+    def sharpe_ratio(self):
+
+        returns = self.returns()
+
+
+        if len(returns) < 2:
+
+            return 0
+
+
+        average = sum(returns) / len(returns)
+
+
+        variance = sum(
+            (r - average) ** 2
+            for r in returns
+        ) / len(returns)
+
+
+        deviation = math.sqrt(
+            variance
+        )
+
+
+        if deviation == 0:
+
+            return 0
+
+
+        return (
+            average / deviation
+        ) * math.sqrt(
+            252
+        )
+
+
+
+    def drawdown_percent(self):
+
+        if not self.results:
+
+            return 0
+
+
+        peak = self.results[0]["equity"]
+
+        max_drawdown = 0
+
+
+        for result in self.results:
+
+            equity = result["equity"]
+
+
+            if equity > peak:
+
+                peak = equity
+
+
+            drawdown = (
+                peak - equity
+            ) / peak * 100
+
+
+            max_drawdown = max(
+                max_drawdown,
+                drawdown
+            )
+
+
+        return max_drawdown
+
+
+
     def report(self):
 
         return {
@@ -93,6 +204,18 @@ class BacktestAnalytics:
                 ),
 
             "max_consecutive_losses":
-                self.consecutive_losses()
+                self.consecutive_losses(),
+
+            "sharpe_ratio":
+                round(
+                    self.sharpe_ratio(),
+                    2
+                ),
+
+            "max_drawdown_percent":
+                round(
+                    self.drawdown_percent(),
+                    2
+                )
 
         }
