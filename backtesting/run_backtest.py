@@ -20,21 +20,16 @@ candles = loader.load(
 )
 
 
-print(
-    f"Loaded {len(candles)} candles"
-)
+print(f"Loaded {len(candles)} candles")
 
 
 prices = []
-
 indicator_data = []
 
 
 for candle in candles:
 
-    prices.append(
-        candle.close
-    )
+    prices.append(candle.close)
 
     indicator_data.append({
 
@@ -46,6 +41,11 @@ for candle in candles:
         "ema": Indicators.ema(
             prices,
             14
+        ),
+
+        "ema200": Indicators.ema(
+            prices,
+            200
         ),
 
         "volatility": Indicators.volatility(
@@ -77,18 +77,17 @@ TradeReport(
 
 
 performance = PerformanceAnalyzer(
-    results,
     portfolio.trades
 )
 
 
 print("\n=== PERFORMANCE ===")
 
-for key, value in performance.report().items():
-
-    print(
-        f"{key}: {value}"
-    )
+print(f"Total Profit: {performance.total_profit():.2f}")
+print(f"Win Rate: {performance.win_rate():.2f}%")
+print(f"Profit Factor: {performance.profit_factor():.2f}")
+print(f"Expectancy: {performance.expectancy():.2f}")
+print(f"Max Drawdown: {performance.max_drawdown():.2f}")
 
 
 

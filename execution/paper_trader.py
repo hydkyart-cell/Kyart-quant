@@ -12,20 +12,41 @@ class PaperTrader:
 
         self.average_entry_price = 0
 
+        self.max_exposure = 0.20
+
+        self.stop_loss_percent = 0.005
+        self.take_profit_percent = 0.01
 
 
-    def buy(self, price, risk_fraction=0.95):
 
-        cash = self.portfolio["cash"]
+    def buy(self, price):
 
-        amount_to_use = cash * risk_fraction
+        equity = self.portfolio["equity"]
+
+        max_position_value = equity * self.max_exposure
+
+        current_position_value = (
+            self.portfolio["position"] * price
+        )
 
 
-        if amount_to_use <= 0:
+        if current_position_value >= max_position_value:
             return False
 
 
-        quantity = amount_to_use / price
+        available_room = (
+            max_position_value - current_position_value
+        )
+
+
+        quantity = available_room / price
+
+
+        if quantity <= 0:
+            return False
+
+
+        cost = quantity * price
 
 
         current_position = self.portfolio["position"]
@@ -47,17 +68,35 @@ class PaperTrader:
 
 
         self.portfolio["position"] = new_position
+        self.portfolio["cash"] -= cost
 
 
-        self.portfolio["cash"] -= (
-            quantity * price
-        )
-
-
-        # Do not touch realized PnL here
         self.update_equity(price)
 
         return True
+
+
+
+    def check_risk_exit(self, price):
+
+        if self.portfolio["position"] <= 0:
+            return False
+
+
+        change = (
+            price - self.average_entry_price
+        ) / self.average_entry_price
+
+
+        if change <= -self.stop_loss_percent:
+            return self.sell(price)
+
+
+        if change >= self.take_profit_percent:
+            return self.sell(price)
+
+
+        return False
 
 
 
@@ -74,8 +113,7 @@ class PaperTrader:
 
 
         cost = (
-            position
-            *
+            position *
             self.average_entry_price
         )
 
@@ -85,13 +123,10 @@ class PaperTrader:
 
         self.portfolio["cash"] += proceeds
 
-
-        # Only update realized when closing
         self.portfolio["realized"] += profit_loss
 
 
         self.portfolio["position"] = 0
-
         self.portfolio["unrealized"] = 0
 
         self.average_entry_price = 0
@@ -106,7 +141,6 @@ class PaperTrader:
     def update_equity(self, price):
 
         position = self.portfolio["position"]
-
 
         position_value = position * price
 

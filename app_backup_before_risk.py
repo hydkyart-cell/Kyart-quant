@@ -5,14 +5,12 @@ from core.price_buffer import PriceBuffer
 from analytics.indicators import Indicators
 from strategy.signal_engine import SignalEngine
 from execution.paper_trader import PaperTrader
-from risk.risk_manager import RiskManager
 
 
 market = MarketEngine("btcusdt")
 buffer = PriceBuffer(500)
 signals = SignalEngine()
 trader = PaperTrader()
-risk_manager = RiskManager()
 
 
 market.start()
@@ -37,6 +35,7 @@ while True:
     if price is not None:
 
 
+        # Risk management check
         risk_exit = trader.check_risk_exit(price)
 
         if risk_exit:
@@ -44,9 +43,6 @@ while True:
             print("=" * 60)
             print("RISK EXIT TRIGGERED")
             print(f"Price   : {price:.2f}")
-
-            trader.sell(price)
-
             print(f"Portfolio: {trader.get_portfolio()}")
 
 
@@ -83,36 +79,20 @@ while True:
 
         if signal != last_signal:
 
-            action = "-"
-
 
             if signal in ("BUY", "STRONG BUY"):
 
-                if risk_manager.check_trade(
-                    trader.get_portfolio(),
-                    "BUY"
-                ):
-
-                    action = trader.buy(price)
-
-                else:
-
-                    action = "RISK DENIED"
-
+                action = trader.buy(price)
 
 
             elif signal in ("SELL", "STRONG SELL"):
 
-                if risk_manager.check_trade(
-                    trader.get_portfolio(),
-                    "SELL"
-                ):
+                action = trader.sell(price)
 
-                    action = trader.sell(price)
 
-                else:
+            else:
 
-                    action = "RISK DENIED"
+                action = "-"
 
 
 
