@@ -23,11 +23,9 @@ class KyartApp:
         self.last_sent_event = None
 
 
-
     def start_market(self):
 
         self.market.start()
-
 
 
     def render(self, snapshot):
@@ -86,7 +84,6 @@ class KyartApp:
             )
 
 
-
         candle_status = snapshot.get(
             "candle_status",
             {}
@@ -111,7 +108,6 @@ class KyartApp:
 
 
         minutes = remaining // 60
-
         seconds = remaining % 60
 
 
@@ -158,22 +154,31 @@ class KyartApp:
 
         table.add_row(
             "SMA",
-            str(snapshot["sma"])
+            str(snapshot.get("sma"))
         )
 
         table.add_row(
             "EMA",
-            str(snapshot["ema"])
+            str(snapshot.get("ema"))
+        )
+
+        table.add_row(
+            "EMA200",
+            str(snapshot.get("ema200"))
+        )
+
+        table.add_row(
+            "ATR(14)",
+            str(snapshot.get("atr"))
         )
 
         table.add_row(
             "Volatility",
-            str(snapshot["volatility"])
+            str(snapshot.get("volatility"))
         )
 
 
         return table
-
 
 
     def run(self):
@@ -198,6 +203,8 @@ class KyartApp:
                 },
                 "sma": 0,
                 "ema": 0,
+                "ema200": 0,
+                "atr": 0,
                 "volatility": 0,
                 "portfolio": {
                     "cash": 10000,
@@ -219,10 +226,9 @@ class KyartApp:
 
                 if price is None:
 
-                    time.sleep(0.2)
+                    time.sleep(1)
 
                     continue
-
 
 
                 snapshot = self.engine.update(
@@ -235,78 +241,23 @@ class KyartApp:
                 )
 
 
-
-                event = snapshot["action"]
-
-
-                if (
-                    event != self.last_sent_event
-                    and event in [
-                        "OPEN_LONG",
-                        "CLOSE_LONG",
-                        "OPEN_SHORT",
-                        "CLOSE_SHORT"
-                    ]
+                if snapshot.get(
+                    "send_notification"
                 ):
 
-
                     self.telegram.send(
-                        f"""
-📊 Kyart Quant Trade Event
-
-Action: {snapshot['action']}
-Signal: {snapshot['signal']}
-Price: {snapshot['price']}
-"""
-                    )
-
-
-                    self.last_sent_event = event
-
-
-
-                if snapshot["send_notification"]:
-
-                    p = snapshot["portfolio"]
-
-                    candle = snapshot.get(
-                        "candle_status",
-                        {}
-                    )
-
-
-                    self.telegram.send(
-                        f"""
-🟢 Kyart Quant Update
-
-Price: {snapshot['price']}
-Signal: {snapshot['signal']}
-Action: {snapshot['action']}
-
-Candle:
-{candle.get('state')}
-Remaining:
-{candle.get('remaining')} seconds
-
-Portfolio:
-
-Cash: {p['cash']}
-Position: {p['position']}
-Equity: {p['equity']}
-
-Indicators:
-
-SMA: {snapshot['sma']}
-EMA: {snapshot['ema']}
-Volatility: {snapshot['volatility']}
-"""
+                        f"📊 KQ | "
+                        f"Price: {snapshot['price']} | "
+                        f"Signal: {snapshot['signal']} | "
+                        f"Action: {snapshot['action']}"
                     )
 
 
                 time.sleep(0.25)
 
 
-
 if __name__ == "__main__":
 
-    KyartApp().run()
+    app = KyartApp()
+
+    app.run()

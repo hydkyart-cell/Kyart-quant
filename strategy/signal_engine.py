@@ -1,42 +1,56 @@
 class SignalEngine:
 
-    def generate(self, price, sma, ema, ema200):
+    def generate(self, price, sma, ema, ema200, atr):
 
-        if sma is None or ema is None or ema200 is None:
+        # Indicator readiness check
+        if sma is None or ema is None or ema200 is None or atr is None:
             return "WAIT"
 
 
-        # Market regime filter
-        trend_distance = (
-            abs(price - ema200) / ema200
-        )
+        # ==========================
+        # VOLATILITY / REGIME FILTER
+        # ==========================
 
-
-        # No clear trend
-        if trend_distance < 0.001:
+        # Avoid trading when price is too close
+        # to the long-term trend line
+        if abs(price - ema200) < atr * 0.5:
             return "HOLD"
 
 
 
-        # Bullish regime
+        # ==========================
+        # BULLISH MARKET REGIME
+        # ==========================
+
         if price > ema200:
 
-            if price > ema > sma:
+            # Strong bullish alignment
+            if price > ema > sma and ema > ema200:
                 return "STRONG BUY"
 
-            if price > sma:
+
+            # Normal bullish alignment
+            if price > sma and sma > ema200:
                 return "BUY"
 
 
 
-        # Bearish regime
-        if price < ema200:
+        # ==========================
+        # BEARISH MARKET REGIME
+        # ==========================
 
-            if price < ema < sma:
+        elif price < ema200:
+
+            # Strong bearish alignment
+            if price < ema < sma and ema < ema200:
                 return "STRONG SELL"
 
-            if price < sma:
+
+            # Normal bearish alignment
+            if price < sma and sma < ema200:
                 return "SELL"
 
 
+
+        # No valid setup
         return "HOLD"

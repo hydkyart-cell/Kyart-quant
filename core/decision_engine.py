@@ -1,12 +1,12 @@
 class DecisionEngine:
     """
-    Conservative decision layer.
+    Main decision layer.
 
     Uses:
-    - Trend
-    - EMA/SMA relationship
-    - Candle direction
-    - Volatility filter
+    - EMA200 market regime
+    - EMA/SMA alignment
+    - Candle confirmation
+    - ATR volatility filter
     """
 
     def decide(self, market_data):
@@ -14,33 +14,24 @@ class DecisionEngine:
         price = market_data.get("price")
         sma = market_data.get("sma")
         ema = market_data.get("ema")
-        volatility = market_data.get("volatility")
+        ema200 = market_data.get("ema200")
+        atr = market_data.get("atr")
         candle = market_data.get("candle")
 
 
-        if sma is None or ema is None:
+        if (
+            price is None
+            or sma is None
+            or ema is None
+            or ema200 is None
+            or atr is None
+        ):
             return "HOLD"
 
 
-        # Avoid low-volatility markets
-        if volatility is not None:
-
-            if volatility < 20:
-
-                return "HOLD"
-
-
-
-        bullish = (
-            price > sma
-            and ema > sma
-        )
-
-
-        bearish = (
-            price < sma
-            and ema < sma
-        )
+        # Avoid sideways markets
+        if abs(price - ema200) < atr * 0.5:
+            return "HOLD"
 
 
         candle_bullish = False
@@ -49,33 +40,49 @@ class DecisionEngine:
 
         if candle:
 
-            candle_bullish = (
-                candle.close > candle.open
-            )
-
-            candle_bearish = (
-                candle.close < candle.open
-            )
+            candle_bullish = candle.close > candle.open
+            candle_bearish = candle.close < candle.open
 
 
-        # Conservative confirmation
+        # Bullish regime
 
-        if (
-            bullish
-            and candle_bullish
-        ):
+        if price > ema200:
 
-            return "BUY"
+            if (
+                price > ema > sma
+                and ema > ema200
+                and candle_bullish
+            ):
+                return "STRONG BUY"
+
+
+            if (
+                price > sma
+                and sma > ema200
+                and candle_bullish
+            ):
+                return "BUY"
 
 
 
-        if (
-            bearish
-            and candle_bearish
-        ):
+        # Bearish regime
 
-            return "SELL"
+        elif price < ema200:
 
+            if (
+                price < ema < sma
+                and ema < ema200
+                and candle_bearish
+            ):
+                return "STRONG SELL"
+
+
+            if (
+                price < sma
+                and sma < ema200
+                and candle_bearish
+            ):
+                return "SELL"
 
 
         return "HOLD"
