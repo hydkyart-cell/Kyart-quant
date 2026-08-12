@@ -11,23 +11,24 @@ class HistoricalDataLoader:
     """
 
     def __init__(self):
+
         self.connector = BinanceHistoryConnector()
 
 
-    def load(self, symbol="BTCUSDT", interval="15m", limit=300):
-        """
-        Fetch historical candles and normalize them.
-        """
+    def load(
+        self,
+        symbol="BTCUSDT",
+        interval="15m",
+        limit=300
+    ):
 
         raw_candles = self.connector.get_klines(
             symbol=symbol,
             interval=interval,
-            limit=limit,
+            limit=limit
         )
 
-
         candles = []
-
 
         for candle in raw_candles:
 
@@ -38,6 +39,29 @@ class HistoricalDataLoader:
                 continue
 
 
+            timestamp_ms = candle.get(
+                "time"
+            )
+
+            if timestamp_ms is None:
+
+                timestamp_ms = candle.get(
+                    "timestamp"
+                )
+
+
+            if timestamp_ms is None:
+
+                raise ValueError(
+                    "Historical candle has no timestamp"
+                )
+
+
+            timestamp = datetime.fromtimestamp(
+                timestamp_ms / 1000
+            )
+
+
             candles.append(
                 Candle(
 
@@ -45,12 +69,7 @@ class HistoricalDataLoader:
 
                     timeframe=interval,
 
-                    timestamp=datetime.fromtimestamp(
-                        candle.get(
-                            "timestamp",
-                            datetime.utcnow().timestamp()
-                        )
-                    ),
+                    timestamp=timestamp,
 
                     open=float(
                         candle["open"]
@@ -82,13 +101,24 @@ class HistoricalDataLoader:
         return candles
 
 
-
 if __name__ == "__main__":
 
     loader = HistoricalDataLoader()
 
     candles = loader.load()
 
-    print(f"Loaded {len(candles)} candles")
+    print(
+        f"Loaded {len(candles)} candles"
+    )
 
-    print(candles[0])
+    if candles:
+
+        print(
+            "First:",
+            candles[0]
+        )
+
+        print(
+            "Last:",
+            candles[-1]
+        )

@@ -5,77 +5,122 @@ import time
 class BinanceHistoryConnector:
     """
     Binance REST historical candle connector.
+
+    Supports pagination so KQ can load more than
+    Binance's 1000-candle single-request limit.
     """
 
     BASE_URL = "https://api.binance.com/api/v3/klines"
-
 
     def get_klines(
         self,
         symbol="BTCUSDT",
         interval="15m",
-        limit=300
+        limit=1000
     ):
 
-        params = {
-            "symbol": symbol.upper(),
-            "interval": interval,
-            "limit": limit
-        }
+        symbol = symbol.upper()
+
+        all_candles = []
+
+        remaining = limit
+
+        end_time = None
+
+        while remaining > 0:
+
+            batch_limit = min(
+                remaining,
+                1000
+            )
+
+            params = {
+                "symbol": symbol,
+                "interval": interval,
+                "limit": batch_limit
+            }
+
+            if end_time is not None:
+
+                params["endTime"] = end_time
 
 
-        attempts = 3
+            attempts = 3
+
+            for attempt in range(attempts):
+
+                try:
+
+                    response = requests.get(
+                        self.BASE_URL,
+                        params=params,
+                        timeout=30
+                    )
+
+                    response.raise_for_status()
+
+                    raw_data = response.json()
+
+                    break
+
+                except requests.exceptions.RequestException as error:
+
+                    print(
+                        f"Binance connection attempt "
+                        f"{attempt + 1}/{attempts} failed"
+                    )
+
+                    if attempt < attempts - 1:
+
+                        time.sleep(3)
+
+                    else:
+
+                        raise error
 
 
-        for attempt in range(attempts):
+            if not raw_data:
 
-            try:
-
-                response = requests.get(
-                    self.BASE_URL,
-                    params=params,
-                    timeout=30
-                )
-
-                response.raise_for_status()
-
-                raw_data = response.json()
-
-                candles = []
+                break
 
 
-                for item in raw_data:
+            batch = []
 
-                    candles.append({
+            for item in raw_data:
 
-                        "time": item[0],
+                batch.append({
 
-                        "open": float(item[1]),
+                    "timestamp": item[0],
 
-                        "high": float(item[2]),
+                    "open": float(item[1]),
 
-                        "low": float(item[3]),
+                    "high": float(item[2]),
 
-                        "close": float(item[4]),
+                    "low": float(item[3]),
 
-                        "volume": float(item[5])
+                    "close": float(item[4]),
 
-                    })
+                    "volume": float(item[5])
+
+                })
 
 
-                return candles
+            all_candles = batch + all_candles
+
+            remaining -= len(batch)
 
 
-            except requests.exceptions.RequestException as error:
+            if len(batch) < batch_limit:
 
-                print(
-                    f"Binance connection attempt {attempt + 1}/{attempts} failed"
-                )
+                break
 
-                if attempt < attempts - 1:
 
-                    time.sleep(3)
+            oldest_timestamp = batch[0]["timestamp"]
 
-                else:
+            end_time = oldest_timestamp - 1
 
-                    raise error
+
+            time.sleep(0.15)
+
+
+        return all_candles[-limit:]
