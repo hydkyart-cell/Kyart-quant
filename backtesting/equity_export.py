@@ -3,15 +3,15 @@ import csv
 
 class EquityExporter:
     """
-    Exports equity curve data for analysis.
+    Exports timestamped equity curve data.
     """
 
-
-    def __init__(self, results):
+    def __init__(
+        self,
+        results
+    ):
 
         self.results = results
-
-
 
     def export_csv(
         self,
@@ -24,27 +24,33 @@ class EquityExporter:
             newline=""
         ) as file:
 
-            writer = csv.writer(file)
-
-
-            writer.writerow(
-                [
-                    "timestamp",
-                    "price",
-                    "equity"
-                ]
+            writer = csv.writer(
+                file
             )
 
+            writer.writerow([
+                "timestamp",
+                "price",
+                "equity"
+            ])
 
-            for result in self.results:
+            for index, result in enumerate(
+                self.results
+            ):
 
-                writer.writerow(
-                    [
-                        result["timestamp"],
-                        result["price"],
-                        result["equity"]
-                    ]
-                )
-
+                writer.writerow([
+                    result.get(
+                        "timestamp",
+                        index
+                    ),
+                    result.get(
+                        "price",
+                        ""
+                    ),
+                    result.get(
+                        "equity",
+                        ""
+                    )
+                ])
 
         return filename
